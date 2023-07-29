@@ -1,7 +1,4 @@
-use serenity::model::{
-    prelude::prelude::interaction::application_command::CommandDataOption,
-    application::interaction::application_command::ApplicationCommandInteraction
-};
+use serenity::model::application::interaction::application_command::ApplicationCommandInteraction;
 pub struct ApplicationContext {
     pub name: String,
     pub ctx: serenity::client::Context,

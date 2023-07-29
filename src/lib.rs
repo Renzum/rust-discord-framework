@@ -1,4 +1,3 @@
-use command_registry::TypeMapCommandRegistry;
 use tokio::task::JoinHandle;
 use serenity::model::application::interaction::Interaction;
 
@@ -22,9 +21,9 @@ pub async fn handle_command(ctx: serenity::prelude::Context, application_interac
     let registry = command_registry::extract_command_registry(&ctx).await;
 
     let app_context = ApplicationContext::new(ctx, interaction);
-    let registry_guard = registry.read().await;
+    let registry = registry.clone();
 
-    let command = registry_guard.locate_command(&app_context.name);
+    let command = registry.locate_command(&app_context.name);
 
 
     match command {
@@ -33,9 +32,11 @@ pub async fn handle_command(ctx: serenity::prelude::Context, application_interac
     }
 }
 
-pub async fn register_commands(ctx: serenity::prelude::Context) {
-    let registry = command_registry::extract_command_registry(&ctx).await;
+pub async fn register_commands(ctx: &serenity::prelude::Context) {
+    let registry = command_registry::extract_command_registry(ctx).await;
 
-    let registry_guard = registry.read().await;
-    let commands = registry_guard.register_global_commands(ctx).await;
+    let _commands = registry.register_global_commands(ctx).await;
+    if let Err(why) = _commands {
+        eprintln!("{:#?}", why);
+    }
 }

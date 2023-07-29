@@ -1,4 +1,4 @@
-use serenity::prelude::RwLock;
+use serenity::prelude::{RwLock, TypeMap};
 use std::sync::Arc;
 
 use super::structs::Command;
@@ -18,13 +18,16 @@ impl CommandRegistry {
         })
     }
 
-    pub async fn register_global_commands(&self, ctx: serenity::client::Context) -> serenity::Result<Vec<serenity::model::prelude::CommandId>> {
+    pub async fn register_global_commands(&self, ctx: &serenity::client::Context) -> serenity::Result<Vec<serenity::model::prelude::CommandId>> {
         let res = serenity::model::application::command::Command::set_global_application_commands(ctx.http.clone(), |commands| {
             for cmd in &self.commands {
+                println!("Registering {}", &cmd.name);
                 commands.create_application_command(|command| {cmd.register(command)});
             }
             commands
         }).await?;
+
+        println!("Success");
 
         Ok(res.iter().map(|cmd| {
             cmd.id
@@ -51,23 +54,25 @@ impl CommandRegistryBuilder {
         self
     }
 
-    pub fn build(&mut self) -> CommandRegistry {
+    pub async fn build(&mut self, client_data: Arc<RwLock<TypeMap>>) {
         if self.commands.is_none() {
             panic!("No commands were provided to the CommandHandler");
-        } else {
-            CommandRegistry {
-                commands: self.commands.take().unwrap(),
-            }
         }
+        let registry = CommandRegistry {
+            commands: self.commands.take().unwrap(),
+        };
+
+        let mut data_guard = client_data.write().await;
+        data_guard.insert::<TypeMapCommandRegistry>(Arc::new(registry));
     }
 }
 
 pub struct TypeMapCommandRegistry;
 impl serenity::prelude::TypeMapKey for TypeMapCommandRegistry {
-    type Value = Arc<RwLock<CommandRegistry>>;
+    type Value = Arc<CommandRegistry>;
 }
 
-pub async fn extract_command_registry(ctx: &serenity::prelude::Context) ->Arc<RwLock<CommandRegistry>> {
+pub async fn extract_command_registry(ctx: &serenity::prelude::Context) ->Arc<CommandRegistry> {
     let registry = ctx.data.read().await;
     registry.get::<TypeMapCommandRegistry>().expect("No Registry found in the serenity global data TypeMap.").clone()
 }

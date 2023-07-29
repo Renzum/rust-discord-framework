@@ -21,30 +21,30 @@ impl syn::parse::Parse for Args {
 
 #[proc_macro_attribute]
 pub fn command(args: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut item = syn::parse_macro_input!(item as syn::ItemFn);
-    if item.sig.asyncness.is_none() {
-        let err = syn::Error::new(item.sig.span(), "A command must be async.").into_compile_error();
+    let mut function = syn::parse_macro_input!(item as syn::ItemFn);
+    // Make sure that the function is async
+    if function.sig.asyncness.is_none() {
+        let err = syn::Error::new(function.sig.span(), "A command must be async.").into_compile_error();
         return quote!(
             #err
         ).into();
     }
 
-    eprintln!("{:#?}", item);
-
-
     let attrs = syn::parse_macro_input!(args as Args);
     let description = {
         if let Some(str) = attr_args::get_description(&attrs.vars) {
-            quote!(std::option::Option::Some(#str))
+            quote!(std::option::Option::Some(std::string::String::from(#str)))
         } else {
             quote!(std::option::Option::None)
         }
     };
-    let command_name = std::mem::replace(&mut item.sig.ident, syn::parse_quote!(inner));
+
+    // Replace the function name with inner s.t. the top function takes the name
+    let command_name = std::mem::replace(&mut function.sig.ident, syn::parse_quote!(inner));
 
     quote::quote!{
         fn #command_name() -> ::command_framework::Command {
-            #item 
+            #function 
             ::command_framework::Command {
                 name: stringify!(#command_name).to_string(),
                 description: #description,
